@@ -1,10 +1,11 @@
 services:
   - type: web
-    name: video-moderation-v2
+    name: video-content-moderation-3
     env: python
     buildCommand: |
       pip install -r requirements.txt
       python -c "import os; os.makedirs('uploads', exist_ok=True)"
+      chmod 777 uploads
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
@@ -15,7 +16,7 @@ services:
     healthCheckPath: /
     autoDeploy: true
     disk:
-      name: video-storage-v2
+      name: video-storage-3
       mountPath: /opt/render/project/src/uploads
       sizeGB: 1
     build:
