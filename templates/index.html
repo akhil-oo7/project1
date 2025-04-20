@@ -224,6 +224,9 @@
             <button onclick="analyzeVideo()">Analyze</button>
         </div>
 
+        <!-- Error message display -->
+        <div id="error-message" style="color: red; margin: 20px 0; display: none;"></div>
+        
         <div class="result-section" id="resultSection" style="display: none;">
             <div class="status" id="status"></div>
             <div class="confidence-bar">
@@ -237,30 +240,47 @@
     <script>
         function analyzeVideo() {
             const fileInput = document.getElementById('videoInput');
-            const file = fileInput.files[0];
+            const errorMessage = document.getElementById('error-message');
+            const resultDiv = document.getElementById('resultSection');
             
-            if (!file) {
-                alert('Please select a video file');
+            // Reset displays
+            errorMessage.style.display = 'none';
+            resultDiv.style.display = 'none';
+            
+            if (!fileInput.files.length) {
+                showError('Please select a video file');
                 return;
             }
-
+            
             const formData = new FormData();
-            formData.append('video', file);
-
+            formData.append('video', fileInput.files[0]);
+            
             fetch('/analyze', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                // Display results
                 displayResults(data);
             })
             .catch(error => {
+                showError('An error occurred while analyzing the video');
                 console.error('Error:', error);
-                alert('An error occurred while analyzing the video');
             });
         }
-
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+        
         function displayResults(data) {
             const resultSection = document.getElementById('resultSection');
             const status = document.getElementById('status');
