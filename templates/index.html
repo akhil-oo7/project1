@@ -99,7 +99,6 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 1rem;
             transition: all 0.3s ease;
         }
 
@@ -108,94 +107,90 @@
             transform: translateY(-2px);
         }
 
-        .status {
-            padding: 1.2rem;
-            margin: 1.5rem 0;
+        .result-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
             border-radius: 8px;
+            background-color: var(--light-gray);
+        }
+
+        .status {
             text-align: center;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
         }
 
         .status.safe {
-            background-color: rgba(40, 167, 69, 0.1);
-            color: var(--success-color);
-            border: 1px solid rgba(40, 167, 69, 0.2);
+            background-color: var(--success-color);
+            color: white;
         }
 
         .status.unsafe {
-            background-color: rgba(220, 53, 69, 0.1);
-            color: var(--danger-color);
-            border: 1px solid rgba(220, 53, 69, 0.2);
+            background-color: var(--danger-color);
+            color: white;
         }
 
-        .status.processing {
-            background-color: rgba(74, 107, 255, 0.1);
-            color: var(--primary-color);
-            border: 1px solid rgba(74, 107, 255, 0.2);
-        }
-
-        .progress-bar {
+        .confidence-bar {
             width: 100%;
-            height: 8px;
-            background-color: var(--light-gray);
-            border-radius: 4px;
-            margin: 1rem 0;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
             overflow: hidden;
+            margin: 1rem 0;
         }
 
-        .progress {
-            width: 0%;
+        .confidence-fill {
             height: 100%;
             background-color: var(--primary-color);
             transition: width 0.3s ease;
-            border-radius: 4px;
         }
 
-        .results {
+        .frame-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
             margin-top: 2rem;
-            padding: 1.5rem;
-            background-color: var(--light-gray);
+        }
+
+        .frame-card {
+            border: 1px solid var(--border-color);
             border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .results h2 {
+        .frame-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .frame-info {
+            padding: 1rem;
+        }
+
+        .frame-confidence {
+            width: 100%;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .frame-confidence-fill {
+            height: 100%;
+            background-color: var(--danger-color);
+        }
+
+        .frame-number {
+            font-size: 0.9rem;
             color: var(--text-color);
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-
-        .confidence {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin: 1rem 0;
-            color: var(--primary-color);
-        }
-
-        .stats {
-            margin: 1rem 0;
-            padding: 1rem;
-            background-color: white;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .details {
-            margin-top: 1.5rem;
-        }
-
-        .frame-detail {
-            background-color: white;
-            padding: 1rem;
-            margin-bottom: 0.8rem;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
-
-        .frame-detail:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 0.5rem;
         }
 
         @media (max-width: 600px) {
@@ -223,22 +218,19 @@
         <h1>Video Content Moderation</h1>
         
         <div class="upload-section">
-            <h2>Upload Video</h2>
-            <label for="videoInput" class="file-input-label">Choose File</label>
+            <h2>Upload Video for Analysis</h2>
             <input type="file" id="videoInput" accept="video/*">
-            <button onclick="analyzeVideo()">Analyze Video</button>
+            <label for="videoInput" class="file-input-label">Choose Video</label>
+            <button onclick="analyzeVideo()">Analyze</button>
         </div>
-        
-        <div class="progress">
-            <div class="progress-bar"></div>
-        </div>
-        
-        <div class="result-section" id="resultSection">
-            <h2>Analysis Results</h2>
+
+        <div class="result-section" id="resultSection" style="display: none;">
             <div class="status" id="status"></div>
-            <div class="confidence" id="confidence"></div>
-            <div class="stats" id="stats"></div>
-            <div class="details" id="details"></div>
+            <div class="confidence-bar">
+                <div class="confidence-fill" id="confidenceFill"></div>
+            </div>
+            <div id="stats"></div>
+            <div class="frame-gallery" id="frameGallery"></div>
         </div>
     </div>
 
@@ -251,13 +243,9 @@
                 alert('Please select a video file');
                 return;
             }
-            
+
             const formData = new FormData();
             formData.append('video', file);
-            
-            // Show progress bar
-            document.querySelector('.progress').style.display = 'block';
-            document.querySelector('.progress-bar').style.width = '0%';
 
             fetch('/analyze', {
                 method: 'POST',
@@ -265,49 +253,54 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Hide progress bar
-                document.querySelector('.progress').style.display = 'none';
-
-                // Show results
-                const resultSection = document.getElementById('resultSection');
-                resultSection.style.display = 'block';
-
-                // Update status
-                const status = document.getElementById('status');
-                status.textContent = `Video Status: ${data.status}`;
-                status.className = `status ${data.status.toLowerCase()}`;
-
-                // Update confidence
-                document.getElementById('confidence').textContent = 
-                    `Confidence: ${(data.confidence * 100).toFixed(1)}%`;
-
-                // Update stats
-                document.getElementById('stats').textContent = 
-                    `Analyzed ${data.total_frames} frames. ` +
-                    (data.unsafe_frames > 0 ? 
-                        `${data.unsafe_frames} unsafe frames (${data.unsafe_percentage.toFixed(1)}%)` : 
-                        'No unsafe content detected.');
-
-                // Update details
-                const details = document.getElementById('details');
-                details.innerHTML = '';
-                
-                if (data.details.length > 0) {
-                    data.details.forEach(detail => {
-                        const frameDetail = document.createElement('div');
-                        frameDetail.className = 'frame-detail';
-                        frameDetail.innerHTML = `
-                            <strong>Frame ${detail.frame}:</strong><br>
-                            Reason: ${detail.reason}<br>
-                            Confidence: ${(detail.confidence * 100).toFixed(1)}%
-                        `;
-                        details.appendChild(frameDetail);
-                    });
-                }
+                displayResults(data);
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('An error occurred while analyzing the video');
+            });
+        }
+
+        function displayResults(data) {
+            const resultSection = document.getElementById('resultSection');
+            const status = document.getElementById('status');
+            const confidenceFill = document.getElementById('confidenceFill');
+            const stats = document.getElementById('stats');
+            const frameGallery = document.getElementById('frameGallery');
+
+            // Show result section
+            resultSection.style.display = 'block';
+
+            // Update status
+            status.textContent = data.status;
+            status.className = `status ${data.status.toLowerCase()}`;
+
+            // Update confidence
+            const confidencePercent = (data.confidence * 100).toFixed(1);
+            confidenceFill.style.width = `${confidencePercent}%`;
+
+            // Update stats
+            stats.innerHTML = `
+                <p>Total Frames: ${data.total_frames}</p>
+                <p>Unsafe Frames: ${data.unsafe_frames}</p>
+                <p>Unsafe Percentage: ${data.unsafe_percentage.toFixed(1)}%</p>
+            `;
+
+            // Display violent frames
+            frameGallery.innerHTML = '';
+            data.details.forEach(detail => {
+                const frameCard = document.createElement('div');
+                frameCard.className = 'frame-card';
+                frameCard.innerHTML = `
+                    <img src="data:image/jpeg;base64,${detail.image}" class="frame-image" alt="Frame ${detail.frame}">
+                    <div class="frame-info">
+                        <div class="frame-confidence">
+                            <div class="frame-confidence-fill" style="width: ${detail.confidence * 100}%"></div>
+                        </div>
+                        <div class="frame-number">Frame ${detail.frame}</div>
+                    </div>
+                `;
+                frameGallery.appendChild(frameCard);
             });
         }
     </script>

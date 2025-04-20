@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, jsonify
 import os
 import logging
+import base64
 from werkzeug.utils import secure_filename
 from video_processor import VideoProcessor
 from content_moderator import ContentModerator
+import cv2
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -62,7 +64,7 @@ def analyze_video():
             total_frames = len(results)
             unsafe_percentage = (len(unsafe_frames) / total_frames) * 100 if total_frames > 0 else 0
             
-            # Prepare response
+            # Prepare response with frame images
             response = {
                 'status': 'UNSAFE' if unsafe_frames else 'SAFE',
                 'total_frames': total_frames,
@@ -75,10 +77,16 @@ def analyze_video():
             if unsafe_frames:
                 for frame_idx, result in enumerate(results):
                     if result['flagged']:
+                        # Convert frame to base64 for display
+                        frame = frames[frame_idx]
+                        _, buffer = cv2.imencode('.jpg', frame)
+                        frame_base64 = base64.b64encode(buffer).decode('utf-8')
+                        
                         response['details'].append({
                             'frame': frame_idx,
                             'reason': result['reason'],
-                            'confidence': result['confidence']
+                            'confidence': result['confidence'],
+                            'image': frame_base64
                         })
             
             # Clean up uploaded file
