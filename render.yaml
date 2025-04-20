@@ -2,14 +2,21 @@ services:
   - type: web
     name: video-content-moderation
     env: python
-    buildCommand: |
-      pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: FLASK_ENV
         value: production
-    plan: free  # Change to 'starter' or 'standard' for better performance
+    plan: free
     healthCheckPath: /
-    autoDeploy: true 
+    autoDeploy: true
+    disk:
+      name: video-storage
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
+    build:
+      includePaths:
+        - models/
+        - uploads/ 

@@ -32,7 +32,8 @@ ENV/
 
 # Dataset and Models
 dataset/
-models/
+models/*
+!models/best_model/
 *.mp4
 *.avi
 *.mov
