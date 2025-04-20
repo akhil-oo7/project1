@@ -61,24 +61,21 @@ class ContentModerator:
                     ignore_mismatched_sizes=True
                 ).to(self.device)
             else:
-                # Try to load from local path first
+                # Load trained model from local path
                 model_path = os.path.join("models", "best_model")
-                if os.path.exists(model_path):
-                    logger.info(f"Loading trained model from local path: {model_path}")
-                    self.model = AutoModelForImageClassification.from_pretrained(
-                        model_path,
-                        num_labels=2,
-                        ignore_mismatched_sizes=True
-                    ).to(self.device)
-                else:
-                    # Fall back to pre-trained model if local model not found
-                    logger.warning(f"Local model not found at {model_path}. Using pre-trained model instead.")
-                    self.model = AutoModelForImageClassification.from_pretrained(
-                        model_name,
-                        num_labels=2,
-                        ignore_mismatched_sizes=True
-                    ).to(self.device)
+                if not os.path.exists(model_path):
+                    logger.error(f"Trained model not found at {model_path}")
+                    raise FileNotFoundError(
+                        f"Could not find the trained model at {model_path}. "
+                        "Please ensure the model is properly uploaded to the 'models' directory."
+                    )
                 
+                logger.info(f"Loading trained model from: {model_path}")
+                self.model = AutoModelForImageClassification.from_pretrained(
+                    model_path,
+                    num_labels=2,
+                    ignore_mismatched_sizes=True
+                ).to(self.device)
                 self.model.eval()  # Set to evaluation mode
                 
             logger.info("Model loaded successfully")
