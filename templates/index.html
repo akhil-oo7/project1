@@ -248,28 +248,20 @@
             resultDiv.style.display = 'none';
             
             if (!fileInput.files.length) {
-                showError('Please select a video file');
+                showError('Please select a video file first');
                 return;
             }
 
             const file = fileInput.files[0];
-            if (file.size > 16 * 1024 * 1024) { // 16MB limit
-                showError('File size exceeds 16MB limit');
-                return;
-            }
-
-            // Validate file type
-            if (!file.type.startsWith('video/')) {
-                showError('Please upload a valid video file');
-                return;
-            }
-            
             const formData = new FormData();
             formData.append('video', file);
-            
+
             // Show loading state
-            showError('Processing video...', 'info');
-            
+            const analyzeButton = document.querySelector('button');
+            const originalText = analyzeButton.textContent;
+            analyzeButton.textContent = 'Analyzing...';
+            analyzeButton.disabled = true;
+
             fetch('/analyze', {
                 method: 'POST',
                 body: formData
@@ -277,80 +269,70 @@
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(data => {
-                        throw new Error(data.error || 'Server error occurred');
+                        throw new Error(data.error || 'Analysis failed');
                     });
                 }
                 return response.json();
             })
             .then(data => {
-                if (data.error) {
-                    showError(data.error);
-                    return;
-                }
-                
-                // Display results
                 displayResults(data);
             })
             .catch(error => {
-                console.error('Error:', error);
-                showError(error.message || 'An error occurred while analyzing the video. Please try again.');
+                showError(error.message || 'Failed to analyze video');
+            })
+            .finally(() => {
+                analyzeButton.textContent = originalText;
+                analyzeButton.disabled = false;
             });
         }
-        
-        function showError(message, type = 'error') {
+
+        function showError(message) {
             const errorMessage = document.getElementById('error-message');
             errorMessage.textContent = message;
             errorMessage.style.display = 'block';
-            errorMessage.style.color = type === 'error' ? 'red' : 'blue';
         }
-        
+
         function displayResults(data) {
-            const resultSection = document.getElementById('resultSection');
-            const status = document.getElementById('status');
+            const resultDiv = document.getElementById('resultSection');
+            const statusDiv = document.getElementById('status');
             const confidenceFill = document.getElementById('confidenceFill');
-            const stats = document.getElementById('stats');
+            const statsDiv = document.getElementById('stats');
             const frameGallery = document.getElementById('frameGallery');
 
-            // Show result section
-            resultSection.style.display = 'block';
+            // Display status
+            statusDiv.textContent = data.status;
+            statusDiv.className = `status ${data.status.toLowerCase()}`;
 
-            // Update status
-            status.textContent = data.status;
-            status.className = `status ${data.status.toLowerCase()}`;
-
-            // Update confidence bar
+            // Display confidence
             const unsafePercentage = data.unsafe_percentage;
             confidenceFill.style.width = `${unsafePercentage}%`;
-            confidenceFill.style.backgroundColor = unsafePercentage > 0 ? 'var(--danger-color)' : 'var(--success-color)';
 
-            // Update stats
-            stats.innerHTML = `
-                <p>Total Frames Analyzed: ${data.total_frames}</p>
+            // Display stats
+            statsDiv.innerHTML = `
+                <p>Total Frames: ${data.total_frames}</p>
                 <p>Unsafe Frames: ${data.unsafe_frames}</p>
-                <p>Unsafe Content: ${unsafePercentage.toFixed(1)}%</p>
+                <p>Unsafe Percentage: ${unsafePercentage.toFixed(2)}%</p>
             `;
 
             // Display flagged frames
             frameGallery.innerHTML = '';
-            if (data.flagged_frames && data.flagged_frames.length > 0) {
-                data.flagged_frames.forEach(frame => {
-                    const frameCard = document.createElement('div');
-                    frameCard.className = 'frame-card';
-                    frameCard.innerHTML = `
-                        <img src="data:image/jpeg;base64,${frame.image}" class="frame-image" alt="Frame ${frame.frame_index}">
-                        <div class="frame-info">
-                            <div class="frame-confidence">
-                                <div class="frame-confidence-fill" style="width: ${frame.confidence * 100}%"></div>
-                            </div>
-                            <div class="frame-number">Frame ${frame.frame_index}</div>
-                            <div class="frame-reason">${frame.reason}</div>
+            data.flagged_frames.forEach(frame => {
+                const frameCard = document.createElement('div');
+                frameCard.className = 'frame-card';
+                frameCard.innerHTML = `
+                    <img src="data:image/jpeg;base64,${frame.image}" class="frame-image" alt="Flagged Frame">
+                    <div class="frame-info">
+                        <p>Frame ${frame.frame_index}</p>
+                        <div class="frame-confidence">
+                            <div class="frame-confidence-fill" style="width: ${frame.confidence * 100}%"></div>
                         </div>
-                    `;
-                    frameGallery.appendChild(frameCard);
-                });
-            } else {
-                frameGallery.innerHTML = '<p>No unsafe content detected</p>';
-            }
+                        <p class="frame-number">Confidence: ${(frame.confidence * 100).toFixed(2)}%</p>
+                    </div>
+                `;
+                frameGallery.appendChild(frameCard);
+            });
+
+            resultDiv.style.display = 'block';
         }
     </script>
 </body>
