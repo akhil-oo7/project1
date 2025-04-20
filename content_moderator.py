@@ -6,6 +6,11 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class VideoFrameDataset(Dataset):
     def __init__(self, frames, labels, feature_extractor):
@@ -45,31 +50,40 @@ class ContentModerator:
         
         try:
             # Always use feature extractor
+            logger.info("Loading feature extractor...")
             self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
             
             if train_mode:
+                logger.info("Initializing model in training mode...")
                 self.model = AutoModelForImageClassification.from_pretrained(
                     model_name,
                     num_labels=2,  # Binary classification: violent vs non-violent
                     ignore_mismatched_sizes=True
                 ).to(self.device)
             else:
-                # Load our trained model from local path
-                print("Loading trained model from local path...")
+                # Try to load from local path first
                 model_path = os.path.join("models", "best_model")
-                if not os.path.exists(model_path):
-                    raise FileNotFoundError(f"Model not found at {model_path}")
+                if os.path.exists(model_path):
+                    logger.info(f"Loading trained model from local path: {model_path}")
+                    self.model = AutoModelForImageClassification.from_pretrained(
+                        model_path,
+                        num_labels=2,
+                        ignore_mismatched_sizes=True
+                    ).to(self.device)
+                else:
+                    # Fall back to pre-trained model if local model not found
+                    logger.warning(f"Local model not found at {model_path}. Using pre-trained model instead.")
+                    self.model = AutoModelForImageClassification.from_pretrained(
+                        model_name,
+                        num_labels=2,
+                        ignore_mismatched_sizes=True
+                    ).to(self.device)
                 
-                self.model = AutoModelForImageClassification.from_pretrained(
-                    model_path,
-                    num_labels=2,
-                    ignore_mismatched_sizes=True
-                ).to(self.device)
                 self.model.eval()  # Set to evaluation mode
                 
-            print("Model loaded successfully")
+            logger.info("Model loaded successfully")
         except Exception as e:
-            print(f"Error loading model: {str(e)}")
+            logger.error(f"Error loading model: {str(e)}")
             raise
     
     def analyze_frames(self, frames):
@@ -84,27 +98,31 @@ class ContentModerator:
         """
         results = []
         
-        # Convert frames to dataset
-        dataset = VideoFrameDataset(frames, [0] * len(frames), self.feature_extractor)
-        dataloader = DataLoader(dataset, batch_size=32)
-        
-        self.model.eval()
-        with torch.no_grad():
-            for batch in dataloader:
-                pixel_values = batch['pixel_values'].to(self.device)
-                outputs = self.model(pixel_values)
-                predictions = torch.softmax(outputs.logits, dim=1)
-                
-                for pred in predictions:
-                    # Get probability of violence (class 1)
-                    violence_prob = pred[1].item()
-                    # Lower threshold for violence detection
-                    flagged = violence_prob > 0.3  # Changed from 0.5 to 0.3
+        try:
+            # Convert frames to dataset
+            dataset = VideoFrameDataset(frames, [0] * len(frames), self.feature_extractor)
+            dataloader = DataLoader(dataset, batch_size=32)
+            
+            self.model.eval()
+            with torch.no_grad():
+                for batch in dataloader:
+                    pixel_values = batch['pixel_values'].to(self.device)
+                    outputs = self.model(pixel_values)
+                    predictions = torch.softmax(outputs.logits, dim=1)
                     
-                    results.append({
-                        'flagged': flagged,
-                        'reason': "Detected violence" if flagged else "No inappropriate content detected",
-                        'confidence': violence_prob if flagged else 1 - violence_prob
-                    })
-        
-        return results 
+                    for pred in predictions:
+                        # Get probability of violence (class 1)
+                        violence_prob = pred[1].item()
+                        # Lower threshold for violence detection
+                        flagged = violence_prob > 0.3  # Changed from 0.5 to 0.3
+                        
+                        results.append({
+                            'flagged': flagged,
+                            'reason': "Detected violence" if flagged else "No inappropriate content detected",
+                            'confidence': violence_prob if flagged else 1 - violence_prob
+                        })
+            
+            return results
+        except Exception as e:
+            logger.error(f"Error analyzing frames: {str(e)}")
+            raise 
