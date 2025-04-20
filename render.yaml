@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: video-content-moderation
+    name: video-moderation-v2
     env: python
     buildCommand: |
       pip install -r requirements.txt
@@ -15,7 +15,7 @@ services:
     healthCheckPath: /
     autoDeploy: true
     disk:
-      name: video-storage
+      name: video-storage-v2
       mountPath: /opt/render/project/src/uploads
       sizeGB: 1
     build:
