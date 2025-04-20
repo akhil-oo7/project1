@@ -251,15 +251,31 @@
                 showError('Please select a video file');
                 return;
             }
+
+            const file = fileInput.files[0];
+            if (file.size > 16 * 1024 * 1024) { // 16MB limit
+                showError('File size exceeds 16MB limit');
+                return;
+            }
             
             const formData = new FormData();
-            formData.append('video', fileInput.files[0]);
+            formData.append('video', file);
+            
+            // Show loading state
+            showError('Processing video...', 'info');
             
             fetch('/analyze', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Server error occurred');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.error) {
                     showError(data.error);
@@ -270,15 +286,16 @@
                 displayResults(data);
             })
             .catch(error => {
-                showError('An error occurred while analyzing the video');
+                showError(error.message || 'An error occurred while analyzing the video');
                 console.error('Error:', error);
             });
         }
         
-        function showError(message) {
+        function showError(message, type = 'error') {
             const errorMessage = document.getElementById('error-message');
             errorMessage.textContent = message;
             errorMessage.style.display = 'block';
+            errorMessage.style.color = type === 'error' ? 'red' : 'blue';
         }
         
         function displayResults(data) {

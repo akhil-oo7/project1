@@ -17,12 +17,20 @@ app.config['UPLOAD_FOLDER'] = '/tmp'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Initialize components
-video_processor = VideoProcessor()
+try:
+    video_processor = VideoProcessor()
+    logger.info("VideoProcessor initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize VideoProcessor: {str(e)}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
+    video_processor = None
+
 try:
     content_moderator = ContentModerator()
     logger.info("ContentModerator initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize ContentModerator: {str(e)}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
     content_moderator = None
 
 @app.route('/')
@@ -31,6 +39,11 @@ def index():
 
 @app.route('/analyze', methods=['POST'])
 def analyze_video():
+    if not video_processor or not content_moderator:
+        error_msg = "Server components not properly initialized"
+        logger.error(error_msg)
+        return jsonify({'error': error_msg}), 500
+
     if 'video' not in request.files:
         logger.error("No video file in request")
         return jsonify({'error': 'No video file provided'}), 400
@@ -48,27 +61,41 @@ def analyze_video():
         logger.info(f"File saved to {filepath}")
         
         # Process video
-        frames = video_processor.extract_frames(filepath)
-        logger.info(f"Extracted {len(frames)} frames")
+        try:
+            frames = video_processor.extract_frames(filepath)
+            logger.info(f"Extracted {len(frames)} frames")
+        except Exception as e:
+            logger.error(f"Error extracting frames: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({'error': f'Error processing video: {str(e)}'}), 500
         
         # Analyze frames
-        results = content_moderator.analyze_frames(frames)
-        logger.info(f"Analyzed {len(results)} frames")
+        try:
+            results = content_moderator.analyze_frames(frames)
+            logger.info(f"Analyzed {len(results)} frames")
+        except Exception as e:
+            logger.error(f"Error analyzing frames: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({'error': f'Error analyzing video: {str(e)}'}), 500
         
         # Prepare response
         flagged_frames = []
         for i, result in enumerate(results):
             if result['flagged']:
-                # Convert frame to base64 for display
-                _, buffer = cv2.imencode('.jpg', frames[i])
-                frame_base64 = base64.b64encode(buffer).decode('utf-8')
-                
-                flagged_frames.append({
-                    'frame_index': i,
-                    'reason': result['reason'],
-                    'confidence': result['confidence'],
-                    'image': frame_base64
-                })
+                try:
+                    # Convert frame to base64 for display
+                    _, buffer = cv2.imencode('.jpg', frames[i])
+                    frame_base64 = base64.b64encode(buffer).decode('utf-8')
+                    
+                    flagged_frames.append({
+                        'frame_index': i,
+                        'reason': result['reason'],
+                        'confidence': result['confidence'],
+                        'image': frame_base64
+                    })
+                except Exception as e:
+                    logger.warning(f"Error processing frame {i}: {str(e)}")
+                    continue
         
         # Calculate unsafe percentage
         total_frames = len(results)
@@ -88,13 +115,17 @@ def analyze_video():
         
     except Exception as e:
         logger.error(f"Error processing video: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
         
     finally:
         # Clean up
         if 'filepath' in locals() and os.path.exists(filepath):
-            os.remove(filepath)
-            logger.info(f"Cleaned up file: {filepath}")
+            try:
+                os.remove(filepath)
+                logger.info(f"Cleaned up file: {filepath}")
+            except Exception as e:
+                logger.warning(f"Error cleaning up file: {str(e)}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
