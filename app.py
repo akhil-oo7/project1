@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from video_processor import VideoProcessor
 from content_moderator import ContentModerator
 import cv2
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +26,7 @@ try:
     logger.info("Successfully initialized video processor and content moderator")
 except Exception as e:
     logger.error(f"Failed to initialize components: {str(e)}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
     raise
 
 @app.route('/')
@@ -96,7 +98,8 @@ def analyze_video():
             return jsonify(response)
             
         except Exception as e:
-            logger.error(f"Error during video analysis: {str(e)}", exc_info=True)
+            logger.error(f"Error during video analysis: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             # Clean up file if it exists
             if 'filepath' in locals() and os.path.exists(filepath):
                 try:
