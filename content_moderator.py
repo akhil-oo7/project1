@@ -43,27 +43,34 @@ class ContentModerator:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model_name = model_name
         
-        # Always use feature extractor
-        self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
-        
-        if train_mode:
-            self.model = AutoModelForImageClassification.from_pretrained(
-                model_name,
-                num_labels=2,  # Binary classification: violent vs non-violent
-                ignore_mismatched_sizes=True
-            ).to(self.device)
-        else:
-            # Load our trained model from local path
-            print("Loading trained model from local path...")
-            model_path = os.path.join("models", "best_model")
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(f"Model not found at {model_path}")
+        try:
+            # Always use feature extractor
+            self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
             
-            self.model = AutoModelForImageClassification.from_pretrained(
-                model_path,
-                num_labels=2
-            ).to(self.device)
-            self.model.eval()  # Set to evaluation mode
+            if train_mode:
+                self.model = AutoModelForImageClassification.from_pretrained(
+                    model_name,
+                    num_labels=2,  # Binary classification: violent vs non-violent
+                    ignore_mismatched_sizes=True
+                ).to(self.device)
+            else:
+                # Load our trained model from local path
+                print("Loading trained model from local path...")
+                model_path = os.path.join("models", "best_model")
+                if not os.path.exists(model_path):
+                    raise FileNotFoundError(f"Model not found at {model_path}")
+                
+                self.model = AutoModelForImageClassification.from_pretrained(
+                    model_path,
+                    num_labels=2,
+                    ignore_mismatched_sizes=True
+                ).to(self.device)
+                self.model.eval()  # Set to evaluation mode
+                
+            print("Model loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            raise
     
     def analyze_frames(self, frames):
         """
