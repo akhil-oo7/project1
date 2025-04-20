@@ -4,8 +4,7 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-      mkdir uploads
-      if not exist uploads mkdir uploads
+      python -c "import os; os.makedirs('uploads', exist_ok=True)"
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
