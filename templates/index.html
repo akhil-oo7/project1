@@ -257,6 +257,12 @@
                 showError('File size exceeds 16MB limit');
                 return;
             }
+
+            // Validate file type
+            if (!file.type.startsWith('video/')) {
+                showError('Please upload a valid video file');
+                return;
+            }
             
             const formData = new FormData();
             formData.append('video', file);
@@ -286,8 +292,8 @@
                 displayResults(data);
             })
             .catch(error => {
-                showError(error.message || 'An error occurred while analyzing the video');
                 console.error('Error:', error);
+                showError(error.message || 'An error occurred while analyzing the video. Please try again.');
             });
         }
         
@@ -312,33 +318,39 @@
             status.textContent = data.status;
             status.className = `status ${data.status.toLowerCase()}`;
 
-            // Update confidence
-            const confidencePercent = (data.confidence * 100).toFixed(1);
-            confidenceFill.style.width = `${confidencePercent}%`;
+            // Update confidence bar
+            const unsafePercentage = data.unsafe_percentage;
+            confidenceFill.style.width = `${unsafePercentage}%`;
+            confidenceFill.style.backgroundColor = unsafePercentage > 0 ? 'var(--danger-color)' : 'var(--success-color)';
 
             // Update stats
             stats.innerHTML = `
-                <p>Total Frames: ${data.total_frames}</p>
+                <p>Total Frames Analyzed: ${data.total_frames}</p>
                 <p>Unsafe Frames: ${data.unsafe_frames}</p>
-                <p>Unsafe Percentage: ${data.unsafe_percentage.toFixed(1)}%</p>
+                <p>Unsafe Content: ${unsafePercentage.toFixed(1)}%</p>
             `;
 
-            // Display violent frames
+            // Display flagged frames
             frameGallery.innerHTML = '';
-            data.details.forEach(detail => {
-                const frameCard = document.createElement('div');
-                frameCard.className = 'frame-card';
-                frameCard.innerHTML = `
-                    <img src="data:image/jpeg;base64,${detail.image}" class="frame-image" alt="Frame ${detail.frame}">
-                    <div class="frame-info">
-                        <div class="frame-confidence">
-                            <div class="frame-confidence-fill" style="width: ${detail.confidence * 100}%"></div>
+            if (data.flagged_frames && data.flagged_frames.length > 0) {
+                data.flagged_frames.forEach(frame => {
+                    const frameCard = document.createElement('div');
+                    frameCard.className = 'frame-card';
+                    frameCard.innerHTML = `
+                        <img src="data:image/jpeg;base64,${frame.image}" class="frame-image" alt="Frame ${frame.frame_index}">
+                        <div class="frame-info">
+                            <div class="frame-confidence">
+                                <div class="frame-confidence-fill" style="width: ${frame.confidence * 100}%"></div>
+                            </div>
+                            <div class="frame-number">Frame ${frame.frame_index}</div>
+                            <div class="frame-reason">${frame.reason}</div>
                         </div>
-                        <div class="frame-number">Frame ${detail.frame}</div>
-                    </div>
-                `;
-                frameGallery.appendChild(frameCard);
-            });
+                    `;
+                    frameGallery.appendChild(frameCard);
+                });
+            } else {
+                frameGallery.innerHTML = '<p>No unsafe content detected</p>';
+            }
         }
     </script>
 </body>

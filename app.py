@@ -53,6 +53,12 @@ def analyze_video():
         logger.error("Empty filename")
         return jsonify({'error': 'No file selected'}), 400
     
+    # Validate file type
+    if not file.filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+        error_msg = "Unsupported file format. Please upload MP4, AVI, MOV, or MKV."
+        logger.error(error_msg)
+        return jsonify({'error': error_msg}), 400
+    
     try:
         # Save the uploaded file
         filename = secure_filename(file.filename)
@@ -63,20 +69,30 @@ def analyze_video():
         # Process video
         try:
             frames = video_processor.extract_frames(filepath)
+            if not frames:
+                error_msg = "No frames could be extracted from the video"
+                logger.error(error_msg)
+                return jsonify({'error': error_msg}), 400
             logger.info(f"Extracted {len(frames)} frames")
         except Exception as e:
-            logger.error(f"Error extracting frames: {str(e)}")
+            error_msg = f"Error processing video: {str(e)}"
+            logger.error(error_msg)
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({'error': f'Error processing video: {str(e)}'}), 500
+            return jsonify({'error': error_msg}), 500
         
         # Analyze frames
         try:
             results = content_moderator.analyze_frames(frames)
+            if not results:
+                error_msg = "No analysis results returned"
+                logger.error(error_msg)
+                return jsonify({'error': error_msg}), 500
             logger.info(f"Analyzed {len(results)} frames")
         except Exception as e:
-            logger.error(f"Error analyzing frames: {str(e)}")
+            error_msg = f"Error analyzing frames: {str(e)}"
+            logger.error(error_msg)
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({'error': f'Error analyzing video: {str(e)}'}), 500
+            return jsonify({'error': error_msg}), 500
         
         # Prepare response
         flagged_frames = []
@@ -110,13 +126,14 @@ def analyze_video():
             'flagged_frames': flagged_frames
         }
         
-        logger.info("Analysis complete. Sending response.")
+        logger.info(f"Analysis complete. Status: {response['status']}, Unsafe Percentage: {unsafe_percentage:.2f}%")
         return jsonify(response)
         
     except Exception as e:
-        logger.error(f"Error processing video: {str(e)}")
+        error_msg = f"An unexpected error occurred: {str(e)}"
+        logger.error(error_msg)
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+        return jsonify({'error': error_msg}), 500
         
     finally:
         # Clean up
