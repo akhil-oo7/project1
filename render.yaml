@@ -10,6 +10,16 @@ services:
         value: 3.9.0
       - key: FLASK_ENV
         value: production
+      - key: PORT
+        value: 10000
     plan: free  # Change to 'starter' or 'standard' for better performance
     healthCheckPath: /
-    autoDeploy: true 
+    autoDeploy: true
+    disk:
+      name: video-storage
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
+    build:
+      includePaths:
+        - models/
+        - uploads/ 
