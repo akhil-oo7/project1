@@ -53,10 +53,14 @@ class ContentModerator:
                 ignore_mismatched_sizes=True
             ).to(self.device)
         else:
-            # Load our trained model from Hugging Face
-            print("Loading trained model from Hugging Face...")
+            # Load our trained model from local path
+            print("Loading trained model from local path...")
+            model_path = os.path.join("models", "best_model")
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Model not found at {model_path}")
+            
             self.model = AutoModelForImageClassification.from_pretrained(
-                "akhil11y/video-content-moderation",
+                model_path,
                 num_labels=2
             ).to(self.device)
             self.model.eval()  # Set to evaluation mode
