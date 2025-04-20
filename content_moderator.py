@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from tqdm import tqdm
 import os
 import logging
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,7 @@ class ContentModerator:
             # Always use feature extractor
             logger.info("Loading feature extractor...")
             self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
+            logger.info("Feature extractor loaded successfully")
             
             if train_mode:
                 logger.info("Initializing model in training mode...")
@@ -60,27 +62,35 @@ class ContentModerator:
                     num_labels=2,  # Binary classification: violent vs non-violent
                     ignore_mismatched_sizes=True
                 ).to(self.device)
+                logger.info("Model initialized in training mode")
             else:
                 # Load trained model from local path
                 model_path = os.path.join("models", "best_model")
                 if not os.path.exists(model_path):
-                    logger.error(f"Trained model not found at {model_path}")
+                    error_msg = f"Trained model not found at {model_path}"
+                    logger.error(error_msg)
                     raise FileNotFoundError(
                         f"Could not find the trained model at {model_path}. "
                         "Please ensure the model is properly uploaded to the 'models' directory."
                     )
                 
                 logger.info(f"Loading trained model from: {model_path}")
-                self.model = AutoModelForImageClassification.from_pretrained(
-                    model_path,
-                    num_labels=2,
-                    ignore_mismatched_sizes=True
-                ).to(self.device)
-                self.model.eval()  # Set to evaluation mode
+                try:
+                    self.model = AutoModelForImageClassification.from_pretrained(
+                        model_path,
+                        num_labels=2,
+                        ignore_mismatched_sizes=True
+                    ).to(self.device)
+                    self.model.eval()  # Set to evaluation mode
+                    logger.info("Model loaded successfully")
+                except Exception as e:
+                    logger.error(f"Error loading model from {model_path}: {str(e)}")
+                    logger.error(f"Model files present: {os.listdir(model_path)}")
+                    raise
                 
-            logger.info("Model loaded successfully")
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.error(f"Error initializing ContentModerator: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
     
     def analyze_frames(self, frames):

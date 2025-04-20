@@ -3,6 +3,7 @@ import numpy as np
 from tqdm import tqdm
 import logging
 import traceback
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,8 +31,17 @@ class VideoProcessor:
             
         Returns:
             list: List of extracted frames as numpy arrays
+            
+        Raises:
+            ValueError: If video file cannot be opened or is empty
+            Exception: For other processing errors
         """
         try:
+            if not os.path.exists(video_path):
+                error_msg = f"Video file not found: {video_path}"
+                logger.error(error_msg)
+                raise FileNotFoundError(error_msg)
+            
             logger.info(f"Opening video file: {video_path}")
             frames = []
             cap = cv2.VideoCapture(video_path)
@@ -42,7 +52,10 @@ class VideoProcessor:
                 raise ValueError(error_msg)
             
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            logger.info(f"Total frames in video: {total_frames}")
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            duration = total_frames / fps if fps > 0 else 0
+            
+            logger.info(f"Video details - Total frames: {total_frames}, FPS: {fps:.2f}, Duration: {duration:.2f}s")
             
             if total_frames == 0:
                 error_msg = "Video file appears to be empty or corrupted"
@@ -58,14 +71,11 @@ class VideoProcessor:
                     
                     if frame_count % self.frame_interval == 0:
                         try:
-                            # Convert BGR to RGB
-                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                             # Resize frame to target size
-                            frame_resized = cv2.resize(frame_rgb, self.target_size)
-                            frames.append(frame_resized)
+                            frame = cv2.resize(frame, self.target_size)
+                            frames.append(frame)
                         except Exception as e:
-                            logger.error(f"Error processing frame {frame_count}: {str(e)}")
-                            logger.error(f"Traceback: {traceback.format_exc()}")
+                            logger.warning(f"Error processing frame {frame_count}: {str(e)}")
                             continue
                     
                     frame_count += 1
@@ -74,16 +84,14 @@ class VideoProcessor:
             cap.release()
             
             if not frames:
-                error_msg = "No frames were extracted from the video"
+                error_msg = "No frames were successfully extracted from the video"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             
-            logger.info(f"Successfully extracted {len(frames)} frames")
+            logger.info(f"Successfully extracted {len(frames)} frames from video")
             return frames
             
         except Exception as e:
             logger.error(f"Error in extract_frames: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
-            if 'cap' in locals():
-                cap.release()
             raise 
