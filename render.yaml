@@ -5,6 +5,7 @@ services:
     buildCommand: |
       pip install -r requirements.txt
       mkdir -p uploads
+      chmod 777 uploads
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
