@@ -63,35 +63,25 @@ class ContentModerator:
             if 'model.safetensors' not in model_files:
                 raise FileNotFoundError("Model file not found at models/best_model/model.safetensors")
                 
-            # Initialize ResNet model
-            self.model = models.resnet50(pretrained=False)
-            
-            # Modify the final layer for our binary classification task
-            num_features = self.model.fc.in_features
-            self.model.fc = nn.Sequential(
-                nn.Linear(num_features, 512),
-                nn.ReLU(),
-                nn.Dropout(0.5),
-                nn.Linear(512, 2)  # 2 classes: safe and unsafe
-            )
-            
             # Load the model weights
             model_path = os.path.join(model_dir, 'model.safetensors')
             state_dict = load_file(model_path)
             
-            # Load state dict, ignoring size mismatches
-            self.model.load_state_dict(state_dict, strict=False)
+            # Initialize the model with the correct architecture
+            self.model = AutoModelForImageClassification.from_pretrained(
+                "models/best_model",
+                state_dict=state_dict,
+                local_files_only=True
+            )
             
             self.model = self.model.to(self.device)
             self.model.eval()
             
             # Set up image preprocessing
-            self.transform = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                                  std=[0.229, 0.224, 0.225])
-            ])
+            self.feature_extractor = AutoFeatureExtractor.from_pretrained(
+                "models/best_model",
+                local_files_only=True
+            )
             
             logger.info("Model loaded successfully")
             
@@ -103,7 +93,7 @@ class ContentModerator:
         """Convert numpy array to PIL Image and apply transforms"""
         if isinstance(image, np.ndarray):
             image = Image.fromarray(image)
-        return self.transform(image).unsqueeze(0).to(self.device)
+        return self.feature_extractor(image, return_tensors="pt").pixel_values.to(self.device)
 
     def analyze_frames(self, frames):
         """Analyze a list of frames for inappropriate content"""
@@ -116,25 +106,20 @@ class ContentModerator:
                 batch = frames[i:i + batch_size]
                 
                 # Preprocess all frames in the batch
-                input_tensors = []
-                for frame in batch:
-                    input_tensor = self.preprocess_image(frame)
-                    input_tensors.append(input_tensor)
-                
-                # Stack tensors into a batch
-                batch_tensor = torch.cat(input_tensors, dim=0)
+                inputs = self.feature_extractor(batch, return_tensors="pt").to(self.device)
                 
                 # Get model predictions for the entire batch
                 with torch.no_grad():
-                    outputs = self.model(batch_tensor)
-                    probabilities = torch.softmax(outputs, dim=1)
+                    outputs = self.model(**inputs)
+                    logits = outputs.logits
+                    probabilities = torch.softmax(logits, dim=1)
                     confidences, predicted = torch.max(probabilities, 1)
                     
                 # Process results for each frame in the batch
                 for j in range(len(batch)):
                     confidence = confidences[j].item()
                     pred = predicted[j].item()
-                    is_unsafe = pred == 1
+                    is_unsafe = pred == 1  # Assuming class 1 is unsafe
                     
                     results.append({
                         'flagged': is_unsafe,
