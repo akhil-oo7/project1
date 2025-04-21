@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import os
 import logging
@@ -42,7 +42,7 @@ except Exception as e:
 
 @app.route('/')
 def index():
-    return jsonify({"status": "ok", "message": "Content Moderation API is running"})
+    return render_template('index.html')
 
 @app.route('/analyze', methods=['POST'])
 def analyze_video():

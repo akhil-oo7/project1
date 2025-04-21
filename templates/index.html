@@ -3,340 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Content Moderation</title>
+    <title>Content Moderation</title>
     <style>
-        :root {
-            --primary-color: #4a6bff;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --warning-color: #ffc107;
-            --text-color: #333;
-            --light-gray: #f8f9fa;
-            --border-color: #dee2e6;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            background-color: #f0f2f5;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
+            background-color: #f5f5f5;
         }
-
         .container {
             background-color: white;
-            width: 100%;
-            max-width: 800px;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-
-        h1 {
-            color: var(--primary-color);
-            text-align: center;
-            margin-bottom: 2rem;
-            font-size: 2.2rem;
-            font-weight: 600;
-        }
-
         .upload-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 4px;
             text-align: center;
-            margin: 2rem 0;
-            padding: 2rem;
-            border: 2px dashed var(--border-color);
-            border-radius: 8px;
-            background-color: var(--light-gray);
-            transition: all 0.3s ease;
         }
-
-        .upload-section:hover {
-            border-color: var(--primary-color);
-            background-color: rgba(74, 107, 255, 0.05);
+        .results {
+            margin-top: 20px;
         }
-
-        .upload-section h2 {
-            color: var(--text-color);
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .file-input-label {
-            display: inline-block;
-            padding: 0.8rem 1.5rem;
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-right: 1rem;
-        }
-
-        .file-input-label:hover {
-            background-color: #3a5bef;
-            transform: translateY(-2px);
-        }
-
-        button {
-            padding: 0.8rem 1.5rem;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #3a5bef;
-            transform: translateY(-2px);
-        }
-
-        .result-section {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            border-radius: 8px;
-            background-color: var(--light-gray);
-        }
-
-        .status {
-            text-align: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border-radius: 6px;
-        }
-
-        .status.safe {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .status.unsafe {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .confidence-bar {
+        .progress {
             width: 100%;
             height: 20px;
-            background-color: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 1rem 0;
-        }
-
-        .confidence-fill {
-            height: 100%;
-            background-color: var(--primary-color);
-            transition: width 0.3s ease;
-        }
-
-        .frame-gallery {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .frame-card {
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            overflow: hidden;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .frame-image {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
-        }
-
-        .frame-info {
-            padding: 1rem;
-        }
-
-        .frame-confidence {
-            width: 100%;
-            height: 8px;
-            background-color: #e9ecef;
+            background-color: #f0f0f0;
             border-radius: 4px;
-            overflow: hidden;
-            margin: 0.5rem 0;
+            margin: 10px 0;
         }
-
-        .frame-confidence-fill {
+        .progress-bar {
             height: 100%;
-            background-color: var(--danger-color);
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
         }
-
-        .frame-number {
-            font-size: 0.9rem;
-            color: var(--text-color);
-            margin-top: 0.5rem;
+        .error {
+            color: red;
+            margin: 10px 0;
         }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 1rem;
-            }
-
-            h1 {
-                font-size: 1.8rem;
-            }
-
-            .upload-section {
-                padding: 1.5rem;
-            }
-
-            .file-input-label, button {
-                width: 100%;
-                margin: 0.5rem 0;
-            }
+        .frame-result {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .frame-result img {
+            max-width: 100%;
+            height: auto;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Video Content Moderation</h1>
-        
+        <h1>Content Moderation</h1>
         <div class="upload-section">
-            <h2>Upload Video for Analysis</h2>
+            <h2>Upload Video</h2>
             <input type="file" id="videoInput" accept="video/*">
-            <label for="videoInput" class="file-input-label">Choose Video</label>
-            <button onclick="analyzeVideo()">Analyze</button>
+            <button onclick="uploadVideo()">Analyze Video</button>
         </div>
-
-        <!-- Error message display -->
-        <div id="error-message" style="color: red; margin: 20px 0; display: none;"></div>
-        
-        <div class="result-section" id="resultSection" style="display: none;">
-            <div class="status" id="status"></div>
-            <div class="confidence-bar">
-                <div class="confidence-fill" id="confidenceFill"></div>
-            </div>
-            <div id="stats"></div>
-            <div class="frame-gallery" id="frameGallery"></div>
+        <div class="progress" style="display: none;">
+            <div class="progress-bar"></div>
+        </div>
+        <div class="error" style="display: none;"></div>
+        <div class="results">
+            <h2>Analysis Results</h2>
+            <div id="results"></div>
         </div>
     </div>
 
     <script>
-        function analyzeVideo() {
+        function uploadVideo() {
             const fileInput = document.getElementById('videoInput');
-            const errorMessage = document.getElementById('error-message');
-            const resultDiv = document.getElementById('resultSection');
-            
-            // Reset displays
-            errorMessage.style.display = 'none';
-            resultDiv.style.display = 'none';
-            
-            if (!fileInput.files.length) {
-                showError('Please select a video file first');
+            const file = fileInput.files[0];
+            const progressBar = document.querySelector('.progress');
+            const progressBarInner = document.querySelector('.progress-bar');
+            const errorDiv = document.querySelector('.error');
+            const resultsDiv = document.getElementById('results');
+
+            if (!file) {
+                showError('Please select a video file');
                 return;
             }
 
-            const file = fileInput.files[0];
             const formData = new FormData();
             formData.append('video', file);
 
-            // Show loading state
-            const analyzeButton = document.querySelector('button');
-            const originalText = analyzeButton.textContent;
-            analyzeButton.textContent = 'Analyzing...';
-            analyzeButton.disabled = true;
+            progressBar.style.display = 'block';
+            errorDiv.style.display = 'none';
+            resultsDiv.innerHTML = '';
 
             fetch('/analyze', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Analysis failed');
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    showError(data.message);
+                    return;
+                }
+
+                // Display results
+                let html = `
+                    <p>Total Frames Analyzed: ${data.total_frames}</p>
+                    <p>Safe Percentage: ${data.safe_percentage.toFixed(2)}%</p>
+                    <p>Unsafe Percentage: ${data.unsafe_percentage.toFixed(2)}%</p>
+                `;
+
+                if (data.frame_results && data.frame_results.length > 0) {
+                    html += '<h3>Unsafe Frames:</h3>';
+                    data.frame_results.forEach(frame => {
+                        html += `
+                            <div class="frame-result">
+                                <p>Frame ${frame.frame_index + 1}</p>
+                                <p>Reason: ${frame.reason}</p>
+                                <p>Confidence: ${(frame.confidence * 100).toFixed(2)}%</p>
+                                <img src="data:image/jpeg;base64,${frame.image}" alt="Frame ${frame.frame_index + 1}">
+                            </div>
+                        `;
                     });
                 }
-                return response.json();
-            })
-            .then(data => {
-                displayResults(data);
+
+                resultsDiv.innerHTML = html;
             })
             .catch(error => {
-                showError(error.message || 'Failed to analyze video');
+                showError('An error occurred while analyzing the video');
+                console.error('Error:', error);
             })
             .finally(() => {
-                analyzeButton.textContent = originalText;
-                analyzeButton.disabled = false;
+                progressBar.style.display = 'none';
             });
         }
 
         function showError(message) {
-            const errorMessage = document.getElementById('error-message');
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-        }
-
-        function displayResults(data) {
-            const resultDiv = document.getElementById('resultSection');
-            const statusDiv = document.getElementById('status');
-            const confidenceFill = document.getElementById('confidenceFill');
-            const statsDiv = document.getElementById('stats');
-            const frameGallery = document.getElementById('frameGallery');
-
-            // Display status
-            statusDiv.textContent = data.unsafe_percentage !== undefined ? 'UNSAFE' : 'SAFE';
-            statusDiv.className = `status ${statusDiv.textContent.toLowerCase()}`;
-
-            // Display confidence
-            const percentage = data.unsafe_percentage !== undefined ? data.unsafe_percentage : 0;
-            confidenceFill.style.width = `${percentage}%`;
-
-            // Display stats
-            statsDiv.innerHTML = `
-                <p>Total Frames: ${data.total_frames}</p>
-                ${data.unsafe_percentage !== undefined ? 
-                    `<p>Unsafe: ${data.unsafe_percentage.toFixed(2)}%</p>` :
-                    `<p>Safe: 100%</p>`
-                }
-            `;
-
-            // Display flagged frames
-            frameGallery.innerHTML = '';
-            if (data.unsafe_percentage !== undefined) {
-                data.frame_results.forEach(frame => {
-                    const frameCard = document.createElement('div');
-                    frameCard.className = 'frame-card';
-                    frameCard.innerHTML = `
-                        <img src="data:image/jpeg;base64,${frame.image}" class="frame-image" alt="Flagged Frame">
-                        <div class="frame-info">
-                            <p>Frame ${frame.frame_index + 1}: ${frame.reason}</p>
-                            <div class="frame-confidence">
-                                <div class="frame-confidence-fill" style="width: ${frame.confidence * 100}%"></div>
-                            </div>
-                            <p class="frame-number">Confidence: ${(frame.confidence * 100).toFixed(2)}%</p>
-                        </div>
-                    `;
-                    frameGallery.appendChild(frameCard);
-                });
-            }
-
-            resultDiv.style.display = 'block';
+            const errorDiv = document.querySelector('.error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
         }
     </script>
 </body>
