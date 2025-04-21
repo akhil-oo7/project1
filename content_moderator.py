@@ -10,6 +10,8 @@ import logging
 import traceback
 from safetensors.torch import load_file
 from torchvision import transforms
+import torch.nn as nn
+import torchvision.models as models
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,106 +47,93 @@ class VideoFrameDataset(Dataset):
         }
 
 class ContentModerator:
-    def __init__(self, model_path="models/best_model"):
-        """
-        Initialize the ContentModerator with a trained model.
-        
-        Args:
-            model_path (str): Path to the trained model directory
-        """
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"Using device: {self.device}")
-        
+    def __init__(self):
         try:
-            # Check if model directory exists
-            if not os.path.exists(model_path):
-                error_msg = f"Model directory not found at {model_path}"
-                logger.error(error_msg)
-                logger.error(f"Current working directory: {os.getcwd()}")
-                logger.error(f"Directory contents: {os.listdir('.')}")
-                raise FileNotFoundError(error_msg)
-            
-            # Check for model files
-            model_files = os.listdir(model_path)
-            logger.info(f"Model files found: {model_files}")
-            
-            # Load model weights
-            model_weights_path = os.path.join(model_path, "model.safetensors")
-            if not os.path.exists(model_weights_path):
-                error_msg = f"Model weights file not found at {model_weights_path}"
-                logger.error(error_msg)
-                raise FileNotFoundError(error_msg)
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            logger.info(f"Using device: {self.device}")
             
             # Load model configuration
-            config_path = os.path.join(model_path, "config.json")
-            if not os.path.exists(config_path):
-                error_msg = f"Model config file not found at {config_path}"
-                logger.error(error_msg)
-                raise FileNotFoundError(error_msg)
+            model_dir = "models/best_model"
+            if not os.path.exists(model_dir):
+                raise FileNotFoundError(f"Model directory not found at {model_dir}")
+                
+            model_files = os.listdir(model_dir)
+            logger.info(f"Model files found: {model_files}")
             
-            logger.info(f"Loading model from {model_weights_path}")
-            # Load model weights from safetensors
-            state_dict = load_file(model_weights_path)
+            if 'model.safetensors' not in model_files:
+                raise FileNotFoundError("Model file not found at models/best_model/model.safetensors")
+                
+            # Initialize ResNet model
+            self.model = models.resnet50(pretrained=False)
             
-            # Initialize model architecture
-            self.model = AutoModelForImageClassification.from_pretrained(
-                "microsoft/resnet-50",
-                num_labels=2,  # Binary classification: safe vs unsafe
-                ignore_mismatched_sizes=True
+            # Modify the final layer for our binary classification task
+            num_features = self.model.fc.in_features
+            self.model.fc = nn.Sequential(
+                nn.Linear(num_features, 512),
+                nn.ReLU(),
+                nn.Dropout(0.5),
+                nn.Linear(512, 2)  # 2 classes: safe and unsafe
             )
-            self.model.load_state_dict(state_dict)
-            self.model.to(self.device)
+            
+            # Load the model weights
+            model_path = os.path.join(model_dir, 'model.safetensors')
+            state_dict = load_file(model_path)
+            
+            # Load state dict, ignoring size mismatches
+            self.model.load_state_dict(state_dict, strict=False)
+            
+            self.model = self.model.to(self.device)
             self.model.eval()
+            
+            # Set up image preprocessing
+            self.transform = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                  std=[0.229, 0.224, 0.225])
+            ])
             
             logger.info("Model loaded successfully")
             
         except Exception as e:
             logger.error(f"Error initializing ContentModerator: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
-    
+
+    def preprocess_image(self, image):
+        """Convert numpy array to PIL Image and apply transforms"""
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+        return self.transform(image).unsqueeze(0).to(self.device)
+
     def analyze_frames(self, frames):
-        """
-        Analyze a list of video frames for inappropriate content.
-        
-        Args:
-            frames (list): List of numpy arrays representing video frames
-            
-        Returns:
-            list: List of dictionaries containing analysis results for each frame
-        """
+        """Analyze a list of frames for inappropriate content"""
         try:
-            # Create dummy labels (all zeros) for the dataset
-            labels = [0] * len(frames)
-            
-            # Create dataset and dataloader
-            dataset = VideoFrameDataset(frames, labels, None)  # feature_extractor is not needed anymore
-            dataloader = DataLoader(dataset, batch_size=32, shuffle=False)
-            
             results = []
-            self.model.eval()
-            
-            with torch.no_grad():
-                for batch in dataloader:
-                    # Move batch to device
-                    pixel_values = batch['pixel_values'].to(self.device)
+            for frame in frames:
+                # Preprocess the frame
+                input_tensor = self.preprocess_image(frame)
+                
+                # Get model prediction
+                with torch.no_grad():
+                    output = self.model(input_tensor)
+                    probabilities = torch.softmax(output, dim=1)
+                    confidence, predicted = torch.max(probabilities, 1)
                     
-                    # Get model predictions
-                    outputs = self.model(pixel_values)
-                    predictions = torch.softmax(outputs.logits, dim=1)
-                    
-                    # Process predictions
-                    for i in range(len(predictions)):
-                        prob_unsafe = predictions[i][1].item()  # Probability of unsafe content
-                        results.append({
-                            'flagged': prob_unsafe > 0.5,
-                            'confidence': prob_unsafe,
-                            'reason': 'Unsafe content detected' if prob_unsafe > 0.5 else 'Content appears safe'
-                        })
-            
+                # Convert to Python types
+                confidence = confidence.item()
+                predicted = predicted.item()
+                
+                # Determine if content is unsafe (class 1)
+                is_unsafe = predicted == 1
+                
+                results.append({
+                    'flagged': is_unsafe,
+                    'confidence': confidence,
+                    'reason': 'Inappropriate content detected' if is_unsafe else 'Content appears safe'
+                })
+                
             return results
             
         except Exception as e:
             logger.error(f"Error analyzing frames: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
             raise 

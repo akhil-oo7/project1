@@ -1,6 +1,6 @@
 {
-  "model_type": "content_moderation",
-  "model_name": "best_model",
+  "model_type": "resnet50",
+  "model_name": "content_moderation",
   "input_size": [224, 224],
   "num_classes": 2,
   "confidence_threshold": 0.7,
@@ -8,5 +8,6 @@
   "device": "cuda",
   "model_path": "models/best_model/model.safetensors",
   "num_channels": 3,
-  "torch_dtype": "float32"
+  "torch_dtype": "float32",
+  "class_names": ["safe", "unsafe"]
 }
