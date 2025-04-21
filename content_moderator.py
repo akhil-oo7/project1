@@ -109,29 +109,39 @@ class ContentModerator:
         """Analyze a list of frames for inappropriate content"""
         try:
             results = []
-            for frame in frames:
-                # Preprocess the frame
-                input_tensor = self.preprocess_image(frame)
+            batch_size = 32  # Process 32 frames at a time
+            
+            # Process frames in batches
+            for i in range(0, len(frames), batch_size):
+                batch = frames[i:i + batch_size]
                 
-                # Get model prediction
+                # Preprocess all frames in the batch
+                input_tensors = []
+                for frame in batch:
+                    input_tensor = self.preprocess_image(frame)
+                    input_tensors.append(input_tensor)
+                
+                # Stack tensors into a batch
+                batch_tensor = torch.cat(input_tensors, dim=0)
+                
+                # Get model predictions for the entire batch
                 with torch.no_grad():
-                    output = self.model(input_tensor)
-                    probabilities = torch.softmax(output, dim=1)
-                    confidence, predicted = torch.max(probabilities, 1)
+                    outputs = self.model(batch_tensor)
+                    probabilities = torch.softmax(outputs, dim=1)
+                    confidences, predicted = torch.max(probabilities, 1)
                     
-                # Convert to Python types
-                confidence = confidence.item()
-                predicted = predicted.item()
-                
-                # Determine if content is unsafe (class 1)
-                is_unsafe = predicted == 1
-                
-                results.append({
-                    'flagged': is_unsafe,
-                    'confidence': confidence,
-                    'reason': 'Inappropriate content detected' if is_unsafe else 'Content appears safe'
-                })
-                
+                # Process results for each frame in the batch
+                for j in range(len(batch)):
+                    confidence = confidences[j].item()
+                    pred = predicted[j].item()
+                    is_unsafe = pred == 1
+                    
+                    results.append({
+                        'flagged': is_unsafe,
+                        'confidence': confidence,
+                        'reason': 'Inappropriate content detected' if is_unsafe else 'Content appears safe'
+                    })
+                    
             return results
             
         except Exception as e:
