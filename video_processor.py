@@ -26,7 +26,48 @@ class VideoProcessor:
         self.max_frames = max_frames
         logger.info(f"Initialized VideoProcessor with frame_interval={frame_interval}, target_size={target_size}, min_frames={min_frames}, max_frames={max_frames}")
     
-    def extract_frames(self, video_path):
+    def extract_frames(self, video_path, num_frames=128):
+        """Extract frames from video file"""
+        try:
+            frames = []
+            cap = cv2.VideoCapture(video_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            
+            # Calculate frame interval to get approximately num_frames
+            if total_frames > num_frames:
+                interval = total_frames // num_frames
+            else:
+                interval = 1
+            
+            logger.info(f"Total frames in video: {total_frames}")
+            logger.info(f"Extracting frames with interval: {interval}")
+            
+            frame_count = 0
+            extracted_count = 0
+            
+            with tqdm(total=min(total_frames, num_frames), desc="Extracting frames") as pbar:
+                while cap.isOpened() and extracted_count < num_frames:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    if frame_count % interval == 0:
+                        frames.append(frame)
+                        extracted_count += 1
+                        pbar.update(1)
+                    
+                    frame_count += 1
+                
+            cap.release()
+            logger.info(f"Successfully extracted {len(frames)} frames from video")
+            return frames
+            
+        except Exception as e:
+            logger.error(f"Error extracting frames: {str(e)}")
+            raise
+
+    def extract_frames_old(self, video_path):
         """
         Extract frames from a video file.
         

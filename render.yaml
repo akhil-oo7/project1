@@ -19,4 +19,8 @@ services:
     build:
       includePaths:
         - models/
-        - uploads/ 
+        - uploads/
+    gunicorn:
+      workerTimeout: 300
+      workerClass: sync
+      workers: 2
