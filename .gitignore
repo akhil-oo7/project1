@@ -36,9 +36,13 @@ uploads/
 *.avi
 *.mov
 *.mkv
-models/
 dataset/
 *.log
+
+# Models - but allow specific model files
+models/*
+!models/best_model/
+!models/best_model/*
 
 # Logs
 *.log
