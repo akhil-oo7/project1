@@ -1,21 +1,23 @@
-# Video Content Moderation System
+# Video Content Moderation
 
-A deep learning-based system for analyzing videos and detecting inappropriate content.
+A Flask web application that analyzes videos for inappropriate content using machine learning.
 
 ## Features
-- Video frame analysis using ResNet-50
-- Real-time content moderation
-- Web interface for easy video upload and analysis
-- Confidence scoring for detected content
+
+- Upload and analyze videos for inappropriate content
+- Real-time frame analysis
+- Safe/Unsafe content percentage calculation
+- Detailed frame-by-frame analysis for unsafe content
 
 ## Local Setup
+
 1. Clone the repository:
 ```bash
-git clone [your-repository-url]
-cd video-content-moderation
+git clone <your-repo-url>
+cd video-content-moderator
 ```
 
-2. Create a virtual environment:
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -26,53 +28,41 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Start the web server:
+4. Run the application:
 ```bash
 python app.py
 ```
 
-5. Access the web interface at `http://localhost:5000`
+5. Open your browser and navigate to `http://localhost:5000`
 
 ## Deployment on Render
-1. Fork this repository to your GitHub account
-2. Sign up at [Render](https://render.com)
-3. Create a new Web Service
-4. Connect your GitHub repository
-5. Configure the service:
-   - Name: video-content-moderation
+
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Configure the service:
    - Environment: Python
    - Build Command: `pip install -r requirements.txt`
    - Start Command: `gunicorn app:app`
-6. Click "Create Web Service"
-
-The app will be automatically deployed and available at your Render URL.
+   - Add environment variables:
+     - `PYTHON_VERSION`: 3.10.0
+     - `PORT`: 10000
 
 ## Project Structure
-```
-├── app.py                 # Flask web server
-├── content_moderator.py   # Core content analysis
-├── train.py              # Model training
-├── video_processor.py    # Video processing
-├── requirements.txt      # Dependencies
-└── templates/           # Web interface
-    └── index.html
-```
 
-## Requirements
-- Python 3.7+
-- PyTorch
-- Transformers
-- Flask
-- OpenCV
-- Gunicorn (for production)
-
-## Notes
-- The model is hosted on Hugging Face
-- Free tier on Render has limitations on processing power
-- Consider upgrading Render plan for better performance
+```
+.
+├── app.py              # Main Flask application
+├── content_moderator.py # Content moderation logic
+├── video_processor.py  # Video processing utilities
+├── requirements.txt    # Python dependencies
+├── render.yaml         # Render deployment configuration
+└── templates/          # HTML templates
+    └── index.html      # Main web interface
+```
 
 ## License
-MIT License
+
+MIT
 
 ## Contributing
 [Your contribution guidelines] 

@@ -30,13 +30,15 @@ ENV/
 *.swp
 *.swo
 
-# Dataset and Models
-dataset/
-models/*
-!models/best_model/
+# Project specific
+uploads/
 *.mp4
 *.avi
 *.mov
+*.mkv
+models/
+dataset/
+*.log
 
 # Logs
 *.log

@@ -28,6 +28,8 @@ def main():
         # Display results
         print("\nContent Moderation Results:")
         print("--------------------------")
+        print(f"Total Frames Analyzed: {len(results)}")
+        print("\nSafety Analysis:")
         
         # Calculate overall video safety
         unsafe_frames = [r for r in results if r['flagged']]
@@ -35,20 +37,15 @@ def main():
         unsafe_percentage = (len(unsafe_frames) / total_frames) * 100
         
         if unsafe_frames:
-            print(f"Video Status: UNSAFE")
-            print(f"Unsafe Content Detected in {len(unsafe_frames)}/{total_frames} frames ({unsafe_percentage:.1f}%)")
-            print("\nDetailed Analysis:")
+            print(f"Safe Content: {100.0 - unsafe_percentage:.2f}%")
+            print(f"Unsafe Content: {unsafe_percentage:.2f}%")
+            print("\nUnsafe Content Details:")
             for frame_idx, result in enumerate(results):
                 if result['flagged']:
-                    print(f"Frame {frame_idx}:")
-                    print(f"Status: UNSAFE")
-                    print(f"Reason: {result['reason']}")
-                    print(f"Confidence: {result['confidence']:.2f}")
-                    print("--------------------------")
+                    print(f"Frame {frame_idx+1}: {result['reason']} (Confidence: {result['confidence']:.2f})")
         else:
-            print(f"Video Status: SAFE")
-            print(f"Confidence: {1.0:.2f}")  # High confidence for completely safe videos
-            print(f"Analyzed {total_frames} frames")
+            print("Safe: 100%")
+            print("Unsafe: 0%")
             print("No inappropriate content detected.")
             
     except Exception as e:

@@ -300,37 +300,41 @@
             const frameGallery = document.getElementById('frameGallery');
 
             // Display status
-            statusDiv.textContent = data.status;
-            statusDiv.className = `status ${data.status.toLowerCase()}`;
+            statusDiv.textContent = data.unsafe_percentage !== undefined ? 'UNSAFE' : 'SAFE';
+            statusDiv.className = `status ${statusDiv.textContent.toLowerCase()}`;
 
             // Display confidence
-            const unsafePercentage = data.unsafe_percentage;
-            confidenceFill.style.width = `${unsafePercentage}%`;
+            const percentage = data.unsafe_percentage !== undefined ? data.unsafe_percentage : 0;
+            confidenceFill.style.width = `${percentage}%`;
 
             // Display stats
             statsDiv.innerHTML = `
                 <p>Total Frames: ${data.total_frames}</p>
-                <p>Unsafe Frames: ${data.unsafe_frames}</p>
-                <p>Unsafe Percentage: ${unsafePercentage.toFixed(2)}%</p>
+                ${data.unsafe_percentage !== undefined ? 
+                    `<p>Unsafe: ${data.unsafe_percentage.toFixed(2)}%</p>` :
+                    `<p>Safe: 100%</p>`
+                }
             `;
 
             // Display flagged frames
             frameGallery.innerHTML = '';
-            data.flagged_frames.forEach(frame => {
-                const frameCard = document.createElement('div');
-                frameCard.className = 'frame-card';
-                frameCard.innerHTML = `
-                    <img src="data:image/jpeg;base64,${frame.image}" class="frame-image" alt="Flagged Frame">
-                    <div class="frame-info">
-                        <p>Frame ${frame.frame_index}</p>
-                        <div class="frame-confidence">
-                            <div class="frame-confidence-fill" style="width: ${frame.confidence * 100}%"></div>
+            if (data.unsafe_percentage !== undefined) {
+                data.frame_results.forEach(frame => {
+                    const frameCard = document.createElement('div');
+                    frameCard.className = 'frame-card';
+                    frameCard.innerHTML = `
+                        <img src="data:image/jpeg;base64,${frame.image}" class="frame-image" alt="Flagged Frame">
+                        <div class="frame-info">
+                            <p>Frame ${frame.frame_index + 1}: ${frame.reason}</p>
+                            <div class="frame-confidence">
+                                <div class="frame-confidence-fill" style="width: ${frame.confidence * 100}%"></div>
+                            </div>
+                            <p class="frame-number">Confidence: ${(frame.confidence * 100).toFixed(2)}%</p>
                         </div>
-                        <p class="frame-number">Confidence: ${(frame.confidence * 100).toFixed(2)}%</p>
-                    </div>
-                `;
-                frameGallery.appendChild(frameCard);
-            });
+                    `;
+                    frameGallery.appendChild(frameCard);
+                });
+            }
 
             resultDiv.style.display = 'block';
         }

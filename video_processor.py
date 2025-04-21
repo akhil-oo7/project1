@@ -10,17 +10,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class VideoProcessor:
-    def __init__(self, frame_interval=30, target_size=(224, 224)):
+    def __init__(self, frame_interval=10, target_size=(224, 224), min_frames=10, max_frames=30):
         """
         Initialize the VideoProcessor.
         
         Args:
             frame_interval (int): Number of frames to skip between extractions
             target_size (tuple): Target size for frame resizing (height, width)
+            min_frames (int): Minimum number of frames to extract
+            max_frames (int): Maximum number of frames to extract
         """
         self.frame_interval = frame_interval
         self.target_size = target_size
-        logger.info(f"Initialized VideoProcessor with frame_interval={frame_interval}, target_size={target_size}")
+        self.min_frames = min_frames
+        self.max_frames = max_frames
+        logger.info(f"Initialized VideoProcessor with frame_interval={frame_interval}, target_size={target_size}, min_frames={min_frames}, max_frames={max_frames}")
     
     def extract_frames(self, video_path):
         """
@@ -62,6 +66,12 @@ class VideoProcessor:
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             
+            # Calculate optimal frame interval based on video length
+            if total_frames > self.max_frames * self.frame_interval:
+                self.frame_interval = total_frames // self.max_frames
+            elif total_frames < self.min_frames:
+                self.frame_interval = 1
+            
             with tqdm(total=total_frames, desc="Extracting frames") as pbar:
                 frame_count = 0
                 while True:
@@ -71,6 +81,8 @@ class VideoProcessor:
                     
                     if frame_count % self.frame_interval == 0:
                         try:
+                            # Convert BGR to RGB
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                             # Resize frame to target size
                             frame = cv2.resize(frame, self.target_size)
                             frames.append(frame)
@@ -87,6 +99,12 @@ class VideoProcessor:
                 error_msg = "No frames were successfully extracted from the video"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
+            
+            # Ensure we have at least min_frames
+            if len(frames) < self.min_frames:
+                # If we have too few frames, reduce the interval and try again
+                self.frame_interval = max(1, total_frames // self.min_frames)
+                return self.extract_frames(video_path)
             
             logger.info(f"Successfully extracted {len(frames)} frames from video")
             return frames

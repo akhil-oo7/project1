@@ -1,17 +1,14 @@
 services:
   - type: web
-    name: video-content-moderation-3
+    name: video-content-moderator
     env: python
-    buildCommand: |
-      pip install -r requirements.txt
-      python -c "import os; os.makedirs('uploads', exist_ok=True)"
-      chmod 777 uploads
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.0
-      - key: FLASK_ENV
-        value: production
+        value: 3.10.0
+      - key: PORT
+        value: 10000
     plan: free
     healthCheckPath: /
     autoDeploy: true

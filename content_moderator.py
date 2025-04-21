@@ -20,6 +20,11 @@ class VideoFrameDataset(Dataset):
         self.frames = frames
         self.labels = labels
         self.feature_extractor = feature_extractor
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
     
     def __len__(self):
         return len(self.frames)
@@ -31,11 +36,11 @@ class VideoFrameDataset(Dataset):
         # Convert numpy array to PIL Image
         image = Image.fromarray(frame)
         
-        # Preprocess the image
-        inputs = self.feature_extractor(image, return_tensors="pt")
+        # Apply transforms
+        image_tensor = self.transform(image)
         
         return {
-            'pixel_values': inputs['pixel_values'].squeeze(),
+            'pixel_values': image_tensor,
             'label': torch.tensor(label, dtype=torch.long)
         }
 
@@ -81,10 +86,10 @@ class ContentModerator:
             # Load model weights from safetensors
             state_dict = load_file(model_weights_path)
             
-            # Initialize model architecture (you'll need to adjust this based on your model)
+            # Initialize model architecture
             self.model = AutoModelForImageClassification.from_pretrained(
                 "microsoft/resnet-50",
-                num_labels=2,  # Binary classification: violent vs non-violent
+                num_labels=2,  # Binary classification: safe vs unsafe
                 ignore_mismatched_sizes=True
             )
             self.model.load_state_dict(state_dict)
@@ -93,13 +98,6 @@ class ContentModerator:
             
             logger.info("Model loaded successfully")
             
-            # Define image transformations
-            self.transform = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-            ])
-            
         except Exception as e:
             logger.error(f"Error initializing ContentModerator: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -107,41 +105,46 @@ class ContentModerator:
     
     def analyze_frames(self, frames):
         """
-        Analyze frames for inappropriate content.
+        Analyze a list of video frames for inappropriate content.
         
         Args:
-            frames (list): List of video frames as numpy arrays
+            frames (list): List of numpy arrays representing video frames
             
         Returns:
-            list: List of analysis results for each frame
+            list: List of dictionaries containing analysis results for each frame
         """
-        results = []
-        
         try:
-            # Convert frames to dataset
-            dataset = VideoFrameDataset(frames, [0] * len(frames), self.transform)
-            dataloader = DataLoader(dataset, batch_size=32)
+            # Create dummy labels (all zeros) for the dataset
+            labels = [0] * len(frames)
             
+            # Create dataset and dataloader
+            dataset = VideoFrameDataset(frames, labels, None)  # feature_extractor is not needed anymore
+            dataloader = DataLoader(dataset, batch_size=32, shuffle=False)
+            
+            results = []
             self.model.eval()
+            
             with torch.no_grad():
                 for batch in dataloader:
+                    # Move batch to device
                     pixel_values = batch['pixel_values'].to(self.device)
+                    
+                    # Get model predictions
                     outputs = self.model(pixel_values)
                     predictions = torch.softmax(outputs.logits, dim=1)
                     
-                    for pred in predictions:
-                        # Get probability of violence (class 1)
-                        violence_prob = pred[1].item()
-                        # Lower threshold for violence detection
-                        flagged = violence_prob > 0.3  # Changed from 0.5 to 0.3
-                        
+                    # Process predictions
+                    for i in range(len(predictions)):
+                        prob_unsafe = predictions[i][1].item()  # Probability of unsafe content
                         results.append({
-                            'flagged': flagged,
-                            'reason': "Detected violence" if flagged else "No inappropriate content detected",
-                            'confidence': violence_prob if flagged else 1 - violence_prob
+                            'flagged': prob_unsafe > 0.5,
+                            'confidence': prob_unsafe,
+                            'reason': 'Unsafe content detected' if prob_unsafe > 0.5 else 'Content appears safe'
                         })
             
             return results
+            
         except Exception as e:
             logger.error(f"Error analyzing frames: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise 

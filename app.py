@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 import os
 import logging
 import base64
@@ -13,7 +14,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = '/tmp'
+CORS(app)  # Enable CORS for all routes
+
+# Create uploads directory if it doesn't exist
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Initialize components
@@ -94,8 +101,18 @@ def analyze_video():
             logger.error(f"Traceback: {traceback.format_exc()}")
             return jsonify({'error': error_msg}), 500
         
+        # Calculate percentages
+        total_frames = len(results)
+        unsafe_frames = [r for r in results if r['flagged']]
+        unsafe_percentage = (len(unsafe_frames) / total_frames) * 100 if total_frames > 0 else 0
+        
         # Prepare response
-        flagged_frames = []
+        response = {
+            'total_frames': total_frames,
+            'frame_results': []
+        }
+        
+        # Process frames and add images
         for i, result in enumerate(results):
             if result['flagged']:
                 try:
@@ -103,7 +120,7 @@ def analyze_video():
                     _, buffer = cv2.imencode('.jpg', frames[i])
                     frame_base64 = base64.b64encode(buffer).decode('utf-8')
                     
-                    flagged_frames.append({
+                    response['frame_results'].append({
                         'frame_index': i,
                         'reason': result['reason'],
                         'confidence': result['confidence'],
@@ -113,20 +130,11 @@ def analyze_video():
                     logger.warning(f"Error processing frame {i}: {str(e)}")
                     continue
         
-        # Calculate unsafe percentage
-        total_frames = len(results)
-        unsafe_frames = len(flagged_frames)
-        unsafe_percentage = (unsafe_frames / total_frames) * 100 if total_frames > 0 else 0
+        if unsafe_frames:
+            response['unsafe_percentage'] = unsafe_percentage
+        else:
+            response['safe_percentage'] = 100.0
         
-        response = {
-            'status': 'UNSAFE' if unsafe_frames > 0 else 'SAFE',
-            'total_frames': total_frames,
-            'unsafe_frames': unsafe_frames,
-            'unsafe_percentage': unsafe_percentage,
-            'flagged_frames': flagged_frames
-        }
-        
-        logger.info(f"Analysis complete. Status: {response['status']}, Unsafe Percentage: {unsafe_percentage:.2f}%")
         return jsonify(response)
         
     except Exception as e:
