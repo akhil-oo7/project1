@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import logging
@@ -42,29 +42,35 @@ except Exception as e:
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return jsonify({"status": "ok", "message": "Content Moderation API is running"})
 
 @app.route('/analyze', methods=['POST'])
 def analyze_video():
     if not video_processor or not content_moderator:
-        error_msg = "Server components not properly initialized"
-        logger.error(error_msg)
-        return jsonify({'error': error_msg}), 500
+        return jsonify({
+            "status": "error",
+            "message": "Server components not properly initialized"
+        }), 500
 
     if 'video' not in request.files:
-        logger.error("No video file in request")
-        return jsonify({'error': 'No video file provided'}), 400
+        return jsonify({
+            "status": "error",
+            "message": "No video file provided"
+        }), 400
     
     file = request.files['video']
     if file.filename == '':
-        logger.error("Empty filename")
-        return jsonify({'error': 'No file selected'}), 400
+        return jsonify({
+            "status": "error",
+            "message": "No file selected"
+        }), 400
     
     # Validate file type
     if not file.filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
-        error_msg = "Unsupported file format. Please upload MP4, AVI, MOV, or MKV."
-        logger.error(error_msg)
-        return jsonify({'error': error_msg}), 400
+        return jsonify({
+            "status": "error",
+            "message": "Unsupported file format. Please upload MP4, AVI, MOV, or MKV."
+        }), 400
     
     try:
         # Save the uploaded file
@@ -77,29 +83,33 @@ def analyze_video():
         try:
             frames = video_processor.extract_frames(filepath)
             if not frames:
-                error_msg = "No frames could be extracted from the video"
-                logger.error(error_msg)
-                return jsonify({'error': error_msg}), 400
+                return jsonify({
+                    "status": "error",
+                    "message": "No frames could be extracted from the video"
+                }), 400
             logger.info(f"Extracted {len(frames)} frames")
         except Exception as e:
-            error_msg = f"Error processing video: {str(e)}"
-            logger.error(error_msg)
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({'error': error_msg}), 500
+            logger.error(f"Error processing video: {str(e)}")
+            return jsonify({
+                "status": "error",
+                "message": f"Error processing video: {str(e)}"
+            }), 500
         
         # Analyze frames
         try:
             results = content_moderator.analyze_frames(frames)
             if not results:
-                error_msg = "No analysis results returned"
-                logger.error(error_msg)
-                return jsonify({'error': error_msg}), 500
+                return jsonify({
+                    "status": "error",
+                    "message": "No analysis results returned"
+                }), 500
             logger.info(f"Analyzed {len(results)} frames")
         except Exception as e:
-            error_msg = f"Error analyzing frames: {str(e)}"
-            logger.error(error_msg)
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({'error': error_msg}), 500
+            logger.error(f"Error analyzing frames: {str(e)}")
+            return jsonify({
+                "status": "error",
+                "message": f"Error analyzing frames: {str(e)}"
+            }), 500
         
         # Calculate percentages
         total_frames = len(results)
@@ -108,8 +118,9 @@ def analyze_video():
         
         # Prepare response
         response = {
-            'total_frames': total_frames,
-            'frame_results': []
+            "status": "success",
+            "total_frames": total_frames,
+            "frame_results": []
         }
         
         # Process frames and add images
@@ -132,16 +143,19 @@ def analyze_video():
         
         if unsafe_frames:
             response['unsafe_percentage'] = unsafe_percentage
+            response['safe_percentage'] = 100 - unsafe_percentage
         else:
             response['safe_percentage'] = 100.0
+            response['unsafe_percentage'] = 0.0
         
         return jsonify(response)
         
     except Exception as e:
-        error_msg = f"An unexpected error occurred: {str(e)}"
-        logger.error(error_msg)
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': error_msg}), 500
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"An unexpected error occurred: {str(e)}"
+        }), 500
         
     finally:
         # Clean up
@@ -153,5 +167,5 @@ def analyze_video():
                 logger.warning(f"Error cleaning up file: {str(e)}")
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port) 
