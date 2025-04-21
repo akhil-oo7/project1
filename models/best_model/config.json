@@ -1,0 +1,47 @@
+{
+  "_name_or_path": "microsoft/resnet-50",
+  "architectures": [
+    "ResNetForImageClassification"
+  ],
+  "depths": [
+    3,
+    4,
+    6,
+    3
+  ],
+  "downsample_in_bottleneck": false,
+  "downsample_in_first_stage": false,
+  "embedding_size": 64,
+  "hidden_act": "relu",
+  "hidden_sizes": [
+    256,
+    512,
+    1024,
+    2048
+  ],
+  "layer_type": "bottleneck",
+  "model_type": "content_moderation",
+  "model_name": "best_model",
+  "input_size": [224, 224],
+  "num_classes": 2,
+  "confidence_threshold": 0.7,
+  "batch_size": 32,
+  "device": "cuda",
+  "model_path": "models/best_model/model.safetensors",
+  "num_channels": 3,
+  "out_features": [
+    "stage4"
+  ],
+  "out_indices": [
+    4
+  ],
+  "stage_names": [
+    "stem",
+    "stage1",
+    "stage2",
+    "stage3",
+    "stage4"
+  ],
+  "torch_dtype": "float32",
+  "transformers_version": "4.35.2"
+}
